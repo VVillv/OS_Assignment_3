@@ -26,11 +26,11 @@ MemoryManager::~MemoryManager()
 
 void *MemoryManager::alloc(std::size_t chunk_size)
 {
-    // Ensure the requested size is within the allowed bounds.
+    // Ensure the requested size is within the allowed bounds
     assert(chunk_size > 0 && "Size must be positive");
-    assert(chunk_size <= 512 && "Maximum allocation size exceeded"); // assuming 512 is the max size
+    assert(chunk_size <= 512 && "Maximum allocation size exceeded");
 
-    // Adjust the chunk size to match one of the fixed partition sizes.
+    // Adjust the chunk size to match one of the fixed partition sizes
     if (chunk_size <= 32)
         chunk_size = 32;
     else if (chunk_size <= 64)
@@ -40,100 +40,87 @@ void *MemoryManager::alloc(std::size_t chunk_size)
     else if (chunk_size <= 256)
         chunk_size = 256;
     else
-        chunk_size = 512; // Adjust based on your fixed sizes
+        chunk_size = 512;
 
-    // The search function will depend on the current strategy.
     auto search_func = [this, chunk_size](const Allocation &chunk)
     {
         if (best_fit_strategy)
         {
-            // For best-fit, we're looking for the smallest chunk that is big enough.
-            return chunk.size >= chunk_size; // You might want to implement a more sophisticated search
+            // For best-fit, we're looking for the smallest chunk that is big enough
+            return chunk.size >= chunk_size;
         }
         else
         {
-            // For first-fit, we're looking for the first chunk that is big enough.
+            // For first-fit, we're looking for the first chunk that is big enough
             return chunk.size >= chunk_size;
         }
     };
 
-    // Search the free list for a suitable chunk.
+    // Search the free list for a suitable chunk
     auto it = std::find_if(free_list.begin(), free_list.end(), search_func);
 
     if (it != free_list.end())
     {
-        // Suitable chunk found in the free list. Remove it from the free list.
         Allocation allocation = *it;
         free_list.erase(it);
 
-        // If the chunk is larger than needed, you might want to split it here and
-        // put the unused portion back into the free list (depending on assignment requirements).
-
-        // Add the allocation to the allocated list.
+        // Add the allocation to the allocated list
         allocated_list.push_back(allocation);
 
-        // Return the allocated space.
+        // Return the allocated space
         return allocation.space;
     }
     else
     {
-        // No suitable chunk was found. Request more memory from the system.
-        void *new_space = sbrk(chunk_size); // Request memory from the OS.
+        // No suitable chunk was found. Request more memory from the system
+        void *new_space = sbrk(chunk_size); // Request memory from the OS
         if (new_space == (void *)-1)
         {
-            // Handle memory allocation failures.
-            return nullptr; // sbrk failed to allocate memory.
+            // Handle memory allocation failures
+            return nullptr; // sbrk failed to allocate memory
         }
 
-        // Create a new allocation.
+        // Create a new allocation
         Allocation new_allocation;
         new_allocation.size = chunk_size;
         new_allocation.space = new_space;
 
-        // Add the new allocation to the allocated list.
+        // Add the new allocation to the allocated list
         allocated_list.push_back(new_allocation);
 
-        // Return the newly allocated space.
+        // Return the newly allocated space
         return new_allocation.space;
     }
 }
 
 void MemoryManager::dealloc(void *chunk)
 {
-    // Validate the input pointer.
+    // Validate the input pointer
     if (chunk == nullptr)
     {
         std::cerr << "Attempt to deallocate null pointer" << std::endl;
-        return; // or handle error as appropriate
+        return;
     }
 
-    // Find the allocation associated with the chunk.
+    // Find the allocation associated with the chunk
     auto it = std::find_if(allocated_list.begin(), allocated_list.end(), [chunk](const Allocation &allocation)
                            { return allocation.space == chunk; });
 
     if (it != allocated_list.end())
     {
-        // The chunk was found in the allocated list.
 
-        // Create a copy of the allocation record (if needed for later).
+        // Create a copy of the allocation record
         Allocation allocation = *it;
 
-        // Remove the chunk from the allocated list.
+        // Remove the chunk from the allocated list
         allocated_list.erase(it);
 
-        // Here, you could merge adjacent free chunks to avoid fragmentation.
-        // This step is optional and depends on your assignment's requirements.
-
-        // Add the freed chunk to the free list.
+        // Add the freed chunk to the free list
         free_list.push_back(allocation);
-
-        // If your system requires, you might need to sort the free list or merge adjacent chunks.
     }
     else
     {
-        // The chunk was not found. This is an error.
         std::cerr << "Attempt to deallocate memory that was not allocated" << std::endl;
-        // Handle the error as appropriate for your system.
     }
 }
 
@@ -178,7 +165,6 @@ void MemoryManager::print_memory_state()
     }
 }
 
-// Method definition for reading commands
 bool MemoryManager::read_commands(const std::string &filename)
 {
     std::ifstream file(filename);
@@ -191,19 +177,18 @@ bool MemoryManager::read_commands(const std::string &filename)
     std::string line;
     std::vector<void *> allocated_chunks; // To keep track of allocated memory chunks
 
-    while (std::getline(file, line)) // Read the file line by line
+    while (std::getline(file, line))
     {
-        std::stringstream ss(line); // Use a stringstream to process the line
+        std::stringstream ss(line);
         std::string command;
-        ss >> command; // Extract the command from the line
+        ss >> command;
 
-        if (command == "alloc:") // If the command is an 'alloc' command
+        if (command == "alloc:")
         {
             int size;
             ss >> size; // Read the size from the command
 
-            // Now, you would call the function that handles memory allocation
-            void *allocated_memory = this->alloc(size); // This is hypothetical; your actual call might be different
+            void *allocated_memory = this->alloc(size);
 
             if (allocated_memory != nullptr)
             {                                                 // Check if allocation was successful
@@ -214,11 +199,9 @@ bool MemoryManager::read_commands(const std::string &filename)
                 std::cerr << "Allocation failed for size: " << size << std::endl;
             }
         }
-        else if (command == "dealloc") // If the command is a 'dealloc' command
+        else if (command == "dealloc")
         {
-            // Here, you would call the function that handles memory deallocation.
-            // You need to determine which memory chunk to deallocate.
-            // This requires you to have kept track of your allocations.
+
             if (!allocated_chunks.empty())
             {
                 void *chunk_to_free = allocated_chunks.back(); // Get the last allocated chunk
@@ -237,6 +220,6 @@ bool MemoryManager::read_commands(const std::string &filename)
         }
     }
 
-    file.close(); // Don't forget to close the file
-    return true;  // Return true if everything was successful
+    file.close();
+    return true;
 }
